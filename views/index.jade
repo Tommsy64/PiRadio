@@ -1,0 +1,9 @@
+extends layout
+
+block content
+  h1= title
+  form#fileUpload(method="post" action="/queue/add" enctype="multipart/form-data") 
+    label(for="payload") Select a song to add to the queue:     
+    input#payload(type="file" name="songs" accept="audio/*" multiple) 
+    br 
+    button#upload Upload
