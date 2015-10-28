@@ -1,36 +1,35 @@
 var express = require('express');
 var router = express.Router();
-var fs = require("fs");
-var multer = require('multer');
-var upload = multer({
-    dest : 'uploads/',
-    fileSize : 30000000, // 30 MB
-    files : '25'
-  });
+var fs = require('fs');
+var songQueue = require('../queue-processor')();
 
 router.get('/', function (req, res, next) {
-  res.send('Queue');
+  res.send('Songs');
 });
 
-router.post('/add', upload.array('songs', 25), function (req, res) {
-  console.log(req.files);
-  for (i = 0; i < req.files.length; i++) {
-    req.db.hset(['queued_songs', req.files[i].filename, req.files[i].originalname]);
-  }
-  res.redirect("back");
+router.post('/add', function (req, res) {
+  req.db.hexists('songs', req.body.songId, function (err, reply) {
+    if (err)
+      return res.sendStatus(500).end();
+    if (reply !== 1 || req.body.frequency > 109 || req.body.frequency < 88)
+      return res.sendStatus(400).end();
+    console.log(req.body.songId + ' ADDED!!');
+    songQueue.add(req.body.songId);
+    return res.sendStatus(204).end();
+  });
 });
 
 router.get('/list', function (req, res, next) {
-  req.db.hgetall('queued_songs', function (err, reply) {
-    if (err) {
-      return res.sendStatus(500).end();
+  songQueue.getQueued().then(function (jobs) {
+    var ids = [];
+    for (var i = 0; i < jobs.length; i++) {
+      ids[i] = jobs[i].jobId;
     }
-
-    return res.json(reply);
+    return res.json(ids);
   });
 });
 
-router.delete ('/delete/:song', function (req, res) {
+router.delete ('/remove/:song', function (req, res) {
   req.db.lrem('queued_songs', -1, req.params.song, function (err, reply) {
     if (err) {
       return res.sendStatus(500).end();
@@ -40,21 +39,9 @@ router.delete ('/delete/:song', function (req, res) {
   });
 });
 
-// TODO: Change to delete
-router.get('/clear', function (req, res) {
-  req.db.del('queued_songs', function (err, reply) {
-    if (err) {
-      return res.sendStatus(500).end();
-    }
-
-    var path = __dirname + '/../uploads';
-    fs.readdir(path, function (err, files) {
-      files.forEach(function (file) {
-        fs.unlink(path + '/' + file, function (err) {});
-      });
-    });
-    return res.sendStatus(204).end();
-  });
+router.delete ('/clear', function (req, res) {
+  songQueue.clear();
+  return res.sendStatus(204).end();
 });
 
 module.exports = router;

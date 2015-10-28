@@ -2,8 +2,21 @@ extends layout
 
 block content
   h1= title
-  form#fileUpload(method="post" action="/queue/add" enctype="multipart/form-data") 
-    label(for="payload") Select a song to add to the queue:     
+  form#fileUpload(method="post" action="/songs/add" enctype="multipart/form-data") 
+    label(for="payload") Select a song to add to the library:
     input#payload(type="file" name="songs" accept="audio/*" multiple) 
     br 
     button#upload Upload
+  #queueWrapper
+    input#songInput(type="text" name="songName")
+    br
+    button#addSong.myButton Add
+  #buttonWrapper
+    button#refresh Refresh
+    button#clearQueue Clear Queue
+    button#deleteSongs Delete Songs
+  h2 Queue
+  div#queueList
+  h2 Songs
+  div#songList
+  br
