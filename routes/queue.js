@@ -1,45 +1,47 @@
-var express = require('express');
-var router = express.Router();
-var fs = require('fs');
-var songQueue = require('../queue-processor')();
+var express = require('express'),
+  router = express.Router(),
+  fs = require('fs'),
+  songQueue = require('../queue-processor')();
 
 router.get('/', function (req, res, next) {
   res.send('Songs');
 });
 
 router.post('/add', function (req, res) {
-  req.db.hexists('songs', req.body.songId, function (err, reply) {
+  req.db.hget('songs', req.body.songId, function (err, songName) {
     if (err)
       return res.sendStatus(500).end();
-    if (reply !== 1 || req.body.frequency > 109 || req.body.frequency < 88)
+    if (songName == null || req.body.frequency > 109 || req.body.frequency < 88)
       return res.sendStatus(400).end();
     console.log(req.body.songId + ' ADDED!!');
-    songQueue.add(req.body.songId);
+    songQueue.add(req.body.songId, songName, req.body.frequency);
     return res.sendStatus(204).end();
   });
 });
 
 router.get('/list', function (req, res, next) {
   songQueue.getQueued().then(function (jobs) {
-    var ids = [];
+    var songs = {};
     for (var i = 0; i < jobs.length; i++) {
-      ids[i] = jobs[i].jobId;
+      songs[jobs[i].jobId] = {
+        songId: jobs[i].data.songId,
+        songName: jobs[i].data.songName
+      };
     }
-    return res.json(ids);
+    return res.json(songs);
   });
 });
 
-router.delete ('/remove/:song', function (req, res) {
-  req.db.lrem('queued_songs', -1, req.params.song, function (err, reply) {
-    if (err) {
-      return res.sendStatus(500).end();
-    }
-
+router.delete('/remove/:id([0-9]+)', function (req, res) {
+  songQueue.getSong(req.params.id).then(function (job) {
+    if (job == null)
+      return res.sendStatus(400).end();
+    job.remove();
     return res.sendStatus(204).end();
   });
 });
 
-router.delete ('/clear', function (req, res) {
+router.delete('/clear', function (req, res) {
   songQueue.clear();
   return res.sendStatus(204).end();
 });

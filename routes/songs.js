@@ -1,42 +1,56 @@
-var express = require('express');
-var router = express.Router();
-var fs = require("fs");
-var multer = require('multer');
-var upload = multer({
-    dest : 'uploads/',
-    fileSize : 30000000, // 30 MB
-    files : '25'
-  });
+var express = require('express'),
+  router = express.Router(),
+  pathAPI = require('path'),
+  fs = require("fs"),
+  multer = require('multer');
 
-router.get('/', function (req, res, next) {
-  res.send('Songs');
+var upload = multer({
+  dest: 'uploads/',
+  fileSize: 30000000, // 30 MB
+  files: '25'
 });
 
 router.post('/add', upload.array('songs', 25), function (req, res) {
   console.log(req.files);
-  for (i = 0; i < req.files.length; i++) {
-    req.db.hset(['songs', req.files[i].filename, req.files[i].originalname]);
+  for (var i = 0; i < req.files.length; i++) {
+    var name = req.body.songName || req.files[i].originalname;
+    console.log(name);
+    req.db.hset(['songs', req.files[i].filename, name]);
   }
   res.redirect("back");
 });
 
 router.get('/list', function (req, res, next) {
-  req.db.hgetall('songs', function (err, reply) {
+  req.db.hgetall('songs', function (err, replys) {
     if (err) {
       return res.sendStatus(500).end();
     }
-
-    return res.json(reply);
+    var songs = [];
+    for (var reply in replys) {
+      songs.push({
+        id: reply,
+        name: replys[reply],
+      });
+    }
+    return res.json(songs);
   });
 });
 
-router.delete('/delete/:song', function (req, res) {
-  req.db.lrem('songs', -1, req.params.song, function (err, reply) {
-    if (err) {
-      return res.sendStatus(500).end();
-    }
+router.delete('/delete/:songId', function (req, res) {
+  if (req.params.songId == null)
+    return res.sendStatus(400).end();
 
-    return res.sendStatus(204).end();
+  req.params.songId = req.params.songId.split(pathAPI.sep)[0]; // Make sure the id is not a path
+
+  var path = __dirname + '/../uploads';
+  fs.unlink(path + '/' + req.params.songId, function (err) {
+    if (err)
+      return res.sendStatus(400).end();
+    req.db.hdel('songs', req.params.songId, function (err, reply) {
+      if (err)
+        return res.sendStatus(500).end();
+      return res.sendStatus(204).end();
+    });
   });
 });
 
@@ -49,7 +63,7 @@ router.delete('/clear', function (req, res) {
     var path = __dirname + '/../uploads';
     fs.readdir(path, function (err, files) {
       files.forEach(function (file) {
-        fs.unlink(path + '/' + file, function (err) {});
+        fs.unlink(path + '/' + file, function (err) { });
       });
     });
     return res.sendStatus(204).end();

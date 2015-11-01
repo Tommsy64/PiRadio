@@ -29,5 +29,18 @@ node_modules
 # Debug log from npm
 npm-debug.log
 
+# OS generated files #
+.DS_Store
+ehthumbs.db
+Icon?
+Thumbs.db
+.idea
+
+# Dist       #
+dist
+public/__build__/**
+.webpack.json
+
 uploads
 dump.rpd
+config.env
